@@ -1,0 +1,11 @@
+/node_modules
+/npm-debug.log
+/.env
+.DS_Store
+/logs
+*.log
+*.sqlite
+*.pid
+
+firebase-credentials.json
+miagao-church-scheduling-firebase-adminsdk-fbsvc-a50a418c10.json
