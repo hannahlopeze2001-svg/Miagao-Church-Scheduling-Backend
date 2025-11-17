@@ -1126,7 +1126,7 @@ LIMIT 1
 const uploadTimestamp = rows[0].upload_timestamp; 
 
 const cacheBuster = uploadTimestamp.getTime(); // Get milliseconds from the Date object
-const fixedHost = 'https://api.miagaochurchscheduling.online/api'; // <-- Use the IP from your mobile app
+const fixedHost = 'https://api.miagaochurchscheduling.online'; // <-- Use the IP from your mobile app
         const baseUrl = `http://${fixedHost}`;
 const fullQrCodeUrl = `${baseUrl}/${qrCodeFilePath}?v=${cacheBuster}`; 
 
