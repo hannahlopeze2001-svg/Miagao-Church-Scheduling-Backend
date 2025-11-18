@@ -1150,7 +1150,11 @@ const uploadTimestamp = rows[0].upload_timestamp;
 
 const cacheBuster = uploadTimestamp.getTime(); // Get milliseconds from the Date object
 const fixedHost = 'https://api.miagaochurchscheduling.online'; // <-- Use the IP from your mobile app
+<<<<<<< HEAD
         const baseUrl = `${fixedHost}`;
+=======
+        const baseUrl = `http://${fixedHost}`;
+>>>>>>> ac5de81d5b7e3e4638c888458a5906e558a236cb
 const fullQrCodeUrl = `${baseUrl}/${qrCodeFilePath}?v=${cacheBuster}`; 
 
 console.log(`[LATEST QR CODE] Found path: ${qrCodeFilePath}. Full URL: ${fullQrCodeUrl}`);
