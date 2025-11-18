@@ -10,14 +10,16 @@ const jwt = require('jsonwebtoken');
 const { Expo } = require('expo-server-sdk');
 const admin = require('firebase-admin');
 const nodemailer = require('nodemailer'); 
-const serviceAccountPath = './miagao-church-scheduling-firebase-adminsdk-fbsvc-a50a418c10.json'; 
+const serviceAccount = require('./miagao-church-scheduling-firebase-adminsdk-fbsvc-a50a418c10.json'); 
+
 try {
     admin.initializeApp({
-        credential: admin.credential.cert(serviceAccountPath),
+        credential: admin.credential.cert(serviceAccount), // Pass the object here
     });
-    console.log("Firebase Admin SDK initialized with Service Account.");
+    console.log("Firebase Admin SDK initialized successfully.");
 } catch (error) {
-    console.error("Failed to initialize Firebase Admin SDK:", error);
+    // This is where you need to see the error if the key is wrong!
+    console.error("Failed to initialize Firebase Admin SDK:", error.message);
 }
 const app = express();
 const port = process.env.ENV_PORT || 3000;
@@ -27,7 +29,7 @@ app.use(cors());
 // Set a large limit for JSON payload to handle large Base64 files
 app.use(express.json({ limit: '100mb' })); 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use('/qr_codes', express.static('C:/xampp/htdocs/CapstoneProjectAppDev/admin/qr_codes'));
+app.use('/qr_codes', express.static(path.join(__dirname, 'admin', 'qr_codes')));
 const pool = mysql.createPool({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
@@ -933,26 +935,47 @@ app.post('/api/assign-schedule', async (req, res) => {
             <p>Please check your admin panel for full request details (documents, contacts, etc.).</p>
             <p>Thank you.</p>
         `;
-        if (priestExpoToken && Expo.isExpoPushToken(priestExpoToken)) {
-            const messages = [{
-                to: priestExpoToken,
-                title: notificationTitle,
-                body: notificationBody,
-                channelId: 'high-priority-channel',
-                data: { 
-                    calendarId: calendarId.toString(),
-                    type: 'new_schedule',
-                    selected_time: formattedTime, // formattedTime should be '08:00 AM'
-                    selected_date: formattedDate
-                },
-            }];
+        if (priestExpoToken) { // We can still check if a token exists, but we don't need Expo.isExpoPushToken
+    
+    // 🛑 START: NEW FIREBASE ADMIN SDK CODE 
+    const message = {
+        token: priestExpoToken, // Expo tokens are compatible with FCM
+        
+        // 1. The main visible notification content
+        notification: {
+            title: notificationTitle,
+            body: notificationBody,
+        },
+        
+        // 2. CRITICAL: ANDROID CONFIGURATION FOR HIGH PRIORITY AND CHANNEL
+        android: {
+            // Set high priority to help ensure the notification is delivered quickly
+            priority: 'high', 
+            notification: {
+                // *** THIS IS THE FIX ***
+                channelId: 'high-priority-channel', 
+                // Set the priority to 'max' to trigger a heads-up/banner notification
+                priority: 'max', 
+                sound: 'default', 
+            },
+        },
+        
+        // 3. Data payload (for handling in the app)
+        data: {
+            calendarId: calendarId.toString(),
+            type: 'new_schedule',
+            selected_time: formattedTime,
+            selected_date: formattedDate
+        }
+    };
 
-            try {
-                let ticketChunk = await expo.sendPushNotificationsAsync(messages);
-                console.log(`[SUCCESS] Expo push ticket received for schedule ${scheduleId}:`, ticketChunk);
-            } catch (error) {
-                console.error(`[FAILURE] Error sending Expo push notification for schedule ${scheduleId}:`, error);
-            }
+    try {
+        // Send the message using the Firebase Admin SDK
+        const response = await admin.messaging().send(message); 
+        console.log(`[SUCCESS] Firebase FCM sent for schedule ${scheduleId}. Response:`, response);
+    } catch (error) {
+        console.error(`[FAILURE] Error sending Firebase FCM notification for schedule ${scheduleId}:`, error);
+    }
         } else {
             console.log(`No valid Expo push token found for priest ${priestId}. Push Notification skipped.`);
         }
@@ -1126,8 +1149,8 @@ LIMIT 1
 const uploadTimestamp = rows[0].upload_timestamp; 
 
 const cacheBuster = uploadTimestamp.getTime(); // Get milliseconds from the Date object
-const fixedHost = '192.168.254.121:3000'; // <-- Use the IP from your mobile app
-        const baseUrl = `http://${fixedHost}`;
+const fixedHost = 'https://api.miagaochurchscheduling.online'; // <-- Use the IP from your mobile app
+        const baseUrl = `${fixedHost}`;
 const fullQrCodeUrl = `${baseUrl}/${qrCodeFilePath}?v=${cacheBuster}`; 
 
 console.log(`[LATEST QR CODE] Found path: ${qrCodeFilePath}. Full URL: ${fullQrCodeUrl}`);
